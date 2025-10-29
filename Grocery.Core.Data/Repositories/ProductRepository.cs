@@ -1,9 +1,11 @@
-﻿using Grocery.Core.Interfaces.Repositories;
+﻿using Grocery.Core.Data.Helpers;
+using Grocery.Core.Interfaces.Repositories;
 using Grocery.Core.Models;
+using Microsoft.Data.Sqlite;
 
 namespace Grocery.Core.Data.Repositories
 {
-    public class ProductRepository : IProductRepository
+    public class ProductRepository : DatabaseConnection ,IProductRepository
     {
         private readonly List<Product> products;
         public ProductRepository()
@@ -26,7 +28,21 @@ namespace Grocery.Core.Data.Repositories
 
         public Product Add(Product item)
         {
-            throw new NotImplementedException();
+            int recordsAffected;
+            string insertQuery = $"INSERT INTO GroceryList(Name, Date, Color, ClientId) VALUES(@Name, @Date, @Color, @ClientId) Returning RowId;";
+            OpenConnection();
+            using (SqliteCommand command = new(insertQuery, Connection))
+            {
+                command.Parameters.AddWithValue("Name", item.Name);
+                command.Parameters.AddWithValue("Date", item.Date);
+                command.Parameters.AddWithValue("Color", item.Color);
+                command.Parameters.AddWithValue("ClientId", item.ClientId);
+
+                //recordsAffected = command.ExecuteNonQuery();
+                item.Id = Convert.ToInt32(command.ExecuteScalar());
+            }
+            CloseConnection();
+            return item;
         }
 
         public Product? Delete(Product item)
