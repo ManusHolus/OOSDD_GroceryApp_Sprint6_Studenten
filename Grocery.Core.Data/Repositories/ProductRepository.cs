@@ -11,7 +11,7 @@ namespace Grocery.Core.Data.Repositories
 
         public ProductRepository()
         {
-            // make a product list
+            // create table
             CreateTable(@"CREATE TABLE IF NOT EXISTS ProductList (
                             [Id] INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                             [Name] NVARCHAR(80) NOT NULL,
@@ -20,19 +20,43 @@ namespace Grocery.Core.Data.Repositories
                             [Price] DECIMAL(10,2) NOT NULL
                         );");
 
-            // already set up list we got
-            products = [
+            // make the products
+            products = new List<Product>
+            {
                 new Product(1, "Melk", 300, new DateOnly(2025, 9, 25), 0.95m),
                 new Product(2, "Kaas", 100, new DateOnly(2025, 9, 30), 7.98m),
                 new Product(3, "Brood", 400, new DateOnly(2025, 9, 12), 2.19m),
                 new Product(4, "Cornflakes", 0, new DateOnly(2025, 12, 31), 1.48m)
-            ];
+            };
+
+            // sample data according to UC17
+            OpenConnection();
+            foreach (var product in products)
+            {
+                string insertQuery = @"
+                    INSERT OR IGNORE INTO ProductList(Name, Stock, ShelfLife, Price)
+                    VALUES(@Name, @Stock, @ShelfLife, @Price);";
+
+                using (SqliteCommand command = new(insertQuery, Connection))
+                {
+                    command.Parameters.AddWithValue("@Name", product.Name);
+                    command.Parameters.AddWithValue("@Stock", product.Stock);
+                    command.Parameters.AddWithValue("@ShelfLife", product.ShelfLife);
+                    command.Parameters.AddWithValue("@Price", product.Price);
+                    command.ExecuteNonQuery();
+                }
+            }
+            CloseConnection();
+
+           
+            GetAll();
         }
 
         public List<Product> GetAll()
         {
             products.Clear();
             string selectQuery = "SELECT Id, Name, Stock, ShelfLife, Price FROM ProductList";
+
             OpenConnection();
             using (SqliteCommand command = new(selectQuery, Connection))
             {
@@ -84,6 +108,7 @@ namespace Grocery.Core.Data.Repositories
         public Product? Delete(Product item)
         {
             string deleteQuery = $"DELETE FROM ProductList WHERE Id = {item.Id};";
+
             OpenConnection();
             using (SqliteCommand command = new(deleteQuery, Connection))
             {
@@ -114,7 +139,7 @@ namespace Grocery.Core.Data.Repositories
             }
             CloseConnection();
 
-            // once you're out of the connection it updates the existing items
+            
             var existing = products.FirstOrDefault(p => p.Id == item.Id);
             if (existing != null)
             {
